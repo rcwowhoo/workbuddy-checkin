@@ -560,7 +560,8 @@ def send_message(title: str, content: str, channels: Optional[List[str]] = None,
 
     for ch in targets:
         try:
-            results.append(send_one(ch, raw, msg, timeout))
+            # 传渠道自己的凭据子字典（如 {"sendkey": ...}），而非顶层配置
+            results.append(send_one(ch, configured.get(ch, {}), msg, timeout))
         except ConfigError as exc:
             results.append({"channel": ch, "status": "unconfigured", "detail": str(exc)})
         except Exception as exc:  # noqa: BLE001 - 单渠道失败不影响整体
