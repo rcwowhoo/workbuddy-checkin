@@ -14,13 +14,12 @@ stages:
     commands:
     - mkdir -p "$HOME/.workbuddy" "$HOME/.workbuddy/scripts"
     - python scripts/rt_auth.py --setup-rt "$WORKBUDDY_RT"
-    - "if [ -n \"$WORKBUDDY_NOTIFY_CONFIG\" ]; then"
-    - '  printf ''%s'' "$WORKBUDDY_NOTIFY_CONFIG" > "$HOME/.workbuddy/scripts/notify_config.json"'
-    - else
-    - "  printf '{\"enabled\":true,\"success_notify\":true,\"channels\":{\"serverchan\"\
-      :{\"sendkey\":\"%s\"}}}' \"$SERVERCHAN_SENDKEY\" > \"$HOME/.workbuddy/scripts/notify_config.json\""
-    - fi
-    - ""
+    - |
+      if [ -n "$WORKBUDDY_NOTIFY_CONFIG" ]; then
+        printf '%s' "$WORKBUDDY_NOTIFY_CONFIG" > "$HOME/.workbuddy/scripts/notify_config.json"
+      else
+        printf '{"enabled":true,"success_notify":true,"channels":{"serverchan":{"sendkey":"%s"}}}' "$SERVERCHAN_SENDKEY" > "$HOME/.workbuddy/scripts/notify_config.json"
+      fi
     - "echo \"CHECK=[RT_len:${#WORKBUDDY_RT} SENDKEY_len:${#SERVERCHAN_SENDKEY}]\""
     - python scripts/rt_auth.py --no-travel
     strategy:
@@ -28,7 +27,7 @@ stages:
 triggers:
   trigger: auto
   schedule:
-  - cron: 0 0 9 * * ?
+  - cron: "0 0 9 * * ?"
 notify: []
 variables:
   global:
