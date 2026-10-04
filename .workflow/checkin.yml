@@ -3,25 +3,32 @@ name: workbuddy-checkin
 displayName: WorkBuddy 自动签到
 stages:
 - name: 执行签到并推送
-  displayName: 执行签到并推送
+  displayName: 多账号签到并汇总推送
   strategy: naturally
   trigger: auto
   steps:
   - step: build@python
     name: setup-and-run
-    displayName: 注入长效令牌并签到，结果推送微信（Server酱）
+    displayName: 逐账号签到，结果一条汇总推送微信（Server酱）
     pythonVersion: "3.10"
     commands:
-    - mkdir -p "$HOME/.workbuddy" "$HOME/.workbuddy/scripts"
-    - python scripts/rt_auth.py --setup-rt "$WORKBUDDY_RT"
+    - mkdir -p "$HOME/.workbuddy" "$HOME/.workbuddy/scripts" .results
     - |
       if [ -n "$WORKBUDDY_NOTIFY_CONFIG" ]; then
         printf '%s' "$WORKBUDDY_NOTIFY_CONFIG" > "$HOME/.workbuddy/scripts/notify_config.json"
       else
         printf '{"enabled":true,"success_notify":true,"channels":{"serverchan":{"sendkey":"%s"}}}' "$SERVERCHAN_SENDKEY" > "$HOME/.workbuddy/scripts/notify_config.json"
       fi
-    - "echo \"CHECK=[RT_len:${#WORKBUDDY_RT} SENDKEY_len:${#SERVERCHAN_SENDKEY}]\""
-    - python scripts/rt_auth.py --no-travel
+    - |
+      i=0
+      for rt in $(echo "$WORKBUDDY_RT" | tr ',' ' '); do
+        i=$((i+1))
+        echo "==== 账号 $i ===="
+        python scripts/rt_auth.py --setup-rt "$rt" > /dev/null || echo "账号 $i 令牌写入失败"
+        python scripts/rt_auth.py --no-travel --no-notify > ".results/$i.json" || true
+      done
+      echo "CHECK=[accounts:$i SENDKEY_len:${#SERVERCHAN_SENDKEY}]"
+    - python scripts/push_summary.py .results/*.json
     strategy:
       retry: "0"
 triggers:

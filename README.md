@@ -46,10 +46,20 @@ git push -u origin master
 
 | 变量名 | 值 | 说明 |
 |---|---|---|
-| `WORKBUDDY_RT` | 上一步的令牌 | 建议勾选「私密」，不要把值提交进仓库 |
+| `WORKBUDDY_RT` | 长效令牌 | 勾选「私密」；**多账号用英文逗号拼接**，如 `令牌A,令牌B` |
 | `SERVERCHAN_SENDKEY` | Server酱的 SendKey | 勾选「私密」；签到结果推送到微信 |
 
-> **Server酱**：到 [sct.ftqq.com](https://sct.ftqq.com) 用微信扫码登录，在「SendKey」页复制 `SCT...` 开头的密钥（服务号「方糖」收推送）。流水线签到后会自动推送「签到成功 +N 积分」或「今日已签到」，失败也会告警。多人可把多个 SendKey 用英文逗号隔开（各自独立额度）。
+> **Server酱**：到 [sct.ftqq.com](https://sct.ftqq.com) 用微信扫码登录，在「SendKey」页复制 `SCT...` 开头的密钥（服务号「方糖」收推送）。流水线会把所有账号的签到结果**汇总成一条**推送（多账号不占多条额度），失败账号带 ❌ 一眼可见。多人可把多个 SendKey 用英文逗号隔开（各自独立额度）。
+>
+> **多账号**：`WORKBUDDY_RT` 里把各账号令牌用英文逗号拼接（如 `令牌A,令牌B`，令牌本身不含逗号；别加空格），流水线逐个签到，汇总推送形如：
+>
+> ```
+> WorkBuddy 签到 · 2026-10-05
+> **账号1** ✅ 领取成功，+100 积分，余额 500
+> **账号2** ✅ 今日已签到，余额 320
+> ```
+>
+> 任一账号失败则流水线红勾变红、退出码 1，方便发现令牌失效要续。
 >
 > 想接钉钉 / 飞书 / 企微等其他 12 类渠道：再加一个私密变量 `WORKBUDDY_NOTIFY_CONFIG`（完整 `notify_config.json` 内容，模板用 `python scripts/workbuddy_checkin.py --init-config` 生成），它存在时优先于 `SERVERCHAN_SENDKEY`。
 
