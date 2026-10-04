@@ -1,0 +1,33 @@
+version: "1.0"
+name: workbuddy-checkin
+displayName: WorkBuddy 自动签到
+stages:
+- name: checkin
+  displayName: 执行签到并推送
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: build@python
+    name: run-checkin
+    displayName: 注入长效令牌并签到，结果推送微信（Server酱）
+    pythonVersion: "3.10"
+    commands:
+    - mkdir -p "$HOME/.workbuddy" "$HOME/.workbuddy/scripts"
+    - python scripts/rt_auth.py --setup-rt "$WORKBUDDY_RT"
+    - |
+      if [ -n "$WORKBUDDY_NOTIFY_CONFIG" ]; then
+        printf '%s' "$WORKBUDDY_NOTIFY_CONFIG" > "$HOME/.workbuddy/scripts/notify_config.json"
+      else
+        printf '{"enabled":true,"success_notify":true,"channels":{"serverchan":{"sendkey":"%s"}}}' "$SERVERCHAN_SENDKEY" > "$HOME/.workbuddy/scripts/notify_config.json"
+      fi
+    - python scripts/rt_auth.py --no-travel
+  strategy:
+    retry: "0"
+triggers:
+  trigger: auto
+  schedule:
+  - cron: "0 0 9 * * ?"
+  notify: []
+global:
+- WORKBUDDY_RT
+- SERVERCHAN_SENDKEY
