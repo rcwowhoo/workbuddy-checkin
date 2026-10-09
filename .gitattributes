@@ -1,0 +1,4 @@
+# 仓库内一律以 LF 存储、并以 LF 检出。
+# 原因：本仓库的 CI 在 Linux runner 上跑，若 shell/YAML 带 CRLF，
+# 会报 $'\r': command not found；Windows 上编辑后也容易把 CRLF 带进仓库。
+* text=auto eol=lf

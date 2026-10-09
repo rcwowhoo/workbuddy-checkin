@@ -1,0 +1,70 @@
+name: WorkBuddy 自动签到
+
+on:
+  schedule:
+    # ⚠️ GitHub 的 cron 一律按 UTC 计算（5 段：分 时 日 月 周）
+    # 北京时间 09:00 = UTC 01:00，所以这里是 0 1 * * *
+    - cron: "0 1 * * *"
+  # 支持在仓库 Actions 页面手动触发，用于首次验证或漏签补救
+  workflow_dispatch:
+
+# 保活步骤需要写权限（推送一个 commit）；其余只需读代码
+permissions:
+  contents: write
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # CI 容器无状态：推送配置必须每次现生成，不能只靠环境变量
+      - name: 生成推送配置
+        env:
+          SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+          WORKBUDDY_NOTIFY_CONFIG: ${{ secrets.WORKBUDDY_NOTIFY_CONFIG }}
+        run: |
+          mkdir -p "$HOME/.workbuddy/scripts" .results
+          if [ -n "$WORKBUDDY_NOTIFY_CONFIG" ]; then
+            printf '%s' "$WORKBUDDY_NOTIFY_CONFIG" > "$HOME/.workbuddy/scripts/notify_config.json"
+          else
+            printf '{"enabled":true,"success_notify":true,"channels":{"serverchan":{"sendkey":"%s"}}}' "$SERVERCHAN_SENDKEY" > "$HOME/.workbuddy/scripts/notify_config.json"
+          fi
+
+      - name: 逐账号签到
+        env:
+          WORKBUDDY_RT: ${{ secrets.WORKBUDDY_RT }}
+        run: |
+          i=0
+          for rt in $(echo "$WORKBUDDY_RT" | tr ',' ' '); do
+            i=$((i+1))
+            echo "==== 账号 $i ===="
+            python scripts/rt_auth.py --setup-rt "$rt" > /dev/null || echo "账号 $i 令牌写入失败"
+            python scripts/rt_auth.py --no-travel --no-notify > ".results/$i.json" || true
+          done
+          echo "CHECK=[accounts:$i]"
+
+      # 任一账号失败时此步退出码为 1，job 变红，方便及早发现令牌失效
+      - name: 汇总推送微信
+        run: python scripts/push_summary.py .results/*.json
+
+      # GitHub 会在仓库长期无提交活动时自动停用定时任务，
+      # 这里每次定时运行写一个日期文件并提交，把仓库"喂活"。
+      # 用 always() 保证即使签到失败也能保活；continue-on-error 不影响 job 结论。
+      - name: 保活提交（防定时任务被自动停用）
+        if: always() && github.event_name == 'schedule'
+        continue-on-error: true
+        run: |
+          date -u +%F > .last-run
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .last-run
+          git diff --staged --quiet || git commit -m "chore: keepalive [skip ci]"
+          git push
