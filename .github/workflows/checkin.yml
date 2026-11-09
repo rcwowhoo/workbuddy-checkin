@@ -23,7 +23,8 @@ jobs:
       - name: 准备 Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          # 只写大版本，让镜像缓存滚动时仍能命中，不必重新下载
+          python-version: "3.12"
 
       # CI 容器无状态：推送配置必须每次现生成，不能只靠环境变量
       - name: 生成推送配置
